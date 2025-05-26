@@ -34,6 +34,9 @@ func RunMockServer() {
 	go createMockRequest(4, longProcess, &u1)
 	go createMockRequest(5, shortProcess, &u2)
 
+	time.Sleep(10 * time.Second)
+	go createMockRequest(6, longProcess, &u1)
+
 	wg.Wait()
 }
 
@@ -42,9 +45,9 @@ func createMockRequest(pid int, fn func(), u *User) {
 	res := HandleRequest(fn, u)
 
 	if res {
-		fmt.Println("UserID:", u.ID, "\tProcess", pid, "done.")
+		fmt.Println("UserID:", u.ID, "\tProcess", pid, "\tTimeUsed:", u.TimeUsed, "seconds, done.")
 	} else {
-		fmt.Println("UserID:", u.ID, "\tProcess", pid, "killed. (No quota left)")
+		fmt.Println("UserID:", u.ID, "\tProcess", pid, "\tTimeUsed:", u.TimeUsed, "seconds,killed. (No quota left)")
 	}
 
 	wg.Done()
