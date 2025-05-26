@@ -20,7 +20,7 @@ func RunMockServer() {
 	u1 := User{ID: 0, IsPremium: false}
 	u2 := User{ID: 1, IsPremium: true}
 
-	wg.Add(5)
+	wg.Add(6)
 
 	go createMockRequest(1, shortProcess, &u1)
 	time.Sleep(1 * time.Second)

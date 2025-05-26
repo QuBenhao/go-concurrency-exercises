@@ -39,7 +39,7 @@ func HandleRequest(process func(), u *User) bool {
 	done := make(chan bool)
 	go func() {
 		process()
-		done <- true
+		close(done)
 	}()
 
 	for {
