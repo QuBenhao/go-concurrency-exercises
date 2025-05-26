@@ -13,10 +13,33 @@
 
 package main
 
+import (
+	"fmt"
+	"os"
+	"os/signal"
+)
+
 func main() {
 	// Create a process
 	proc := MockProcess{}
 
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt)
+	stopCount := 0
+
 	// Run the process (blocking)
-	proc.Run()
+	go proc.Run()
+	for {
+		select {
+		case <-c:
+			stopCount++
+			if stopCount == 1 {
+				fmt.Printf("\nReceived SIGINT, trying to stop the process gracefully")
+				go proc.Stop()
+			} else {
+				fmt.Println("\nReceived second SIGINT, exiting immediately")
+				os.Exit(1) // Last resort, kill the program
+			}
+		}
+	}
 }
