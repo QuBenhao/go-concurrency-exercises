@@ -24,11 +24,16 @@ func main() {
 	proc := MockProcess{}
 
 	c := make(chan os.Signal, 2)
+	defer close(c)
 	signal.Notify(c, os.Interrupt)
 	stopCount := 0
+	done := make(chan any)
 
 	// Run the process (blocking)
-	go proc.Run()
+	go func() {
+		proc.Run()
+		done <- nil
+	}()
 	for {
 		select {
 		case <-c:
@@ -40,6 +45,9 @@ func main() {
 				fmt.Println("\nReceived second SIGINT, exiting immediately")
 				os.Exit(1) // Last resort, kill the program
 			}
+		case <-done:
+			fmt.Println("\nProcess has stopped gracefully")
+			break
 		}
 	}
 }
