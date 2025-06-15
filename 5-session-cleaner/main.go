@@ -29,6 +29,7 @@ import (
 type SessionManager struct {
 	sessions map[string]Session
 	mu       sync.Mutex
+	stopCh   chan struct{}
 }
 
 // Session stores the session's data
@@ -41,9 +42,38 @@ type Session struct {
 func NewSessionManager() *SessionManager {
 	m := &SessionManager{
 		sessions: make(map[string]Session),
+		stopCh:   make(chan struct{}),
 	}
 
+	m.StartCleaner()
 	return m
+}
+
+func (m *SessionManager) StartCleaner() {
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				now := time.Now()
+				m.mu.Lock()
+				for id, session := range m.sessions {
+					if now.Sub(session.lastUpdated) > 5*time.Second {
+						delete(m.sessions, id)
+						log.Println("Session", id, "cleaned up")
+					}
+				}
+				m.mu.Unlock()
+			case <-m.stopCh:
+				return
+			}
+		}
+	}()
+}
+
+func (m *SessionManager) StopCleaner() {
+	close(m.stopCh)
 }
 
 // CreateSession creates a new session and returns the sessionID
@@ -59,27 +89,6 @@ func (m *SessionManager) CreateSession() (string, error) {
 		lastUpdated: time.Now(),
 	}
 	m.mu.Unlock()
-
-	// Start a goroutine to clean up the session after 5 seconds
-	go func(id string) {
-		// Wait for 5 seconds before cleaning up
-		// In a real application, you would use a time.Ticker or similar
-		// to periodically check for expired sessions.
-		for {
-			select {
-			case <-time.After(5 * time.Second):
-				m.mu.Lock()
-				if session, exists := m.sessions[id]; exists {
-					if time.Since(session.lastUpdated) > 5*time.Second {
-						delete(m.sessions, id)
-						log.Println("Session", id, "cleaned up")
-					}
-				}
-				m.mu.Unlock()
-			}
-		}
-	}(sessionID)
-
 	return sessionID, nil
 }
 
@@ -120,6 +129,9 @@ func (m *SessionManager) UpdateSessionData(sessionID string, data map[string]int
 func main() {
 	// Create new sessionManager and new session
 	m := NewSessionManager()
+	m.StartCleaner()
+	defer m.StopCleaner()
+
 	sID, err := m.CreateSession()
 	if err != nil {
 		log.Fatal(err)
